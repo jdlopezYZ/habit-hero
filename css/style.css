@@ -633,11 +633,230 @@ input { font-family: var(--font-retro); }
 
 
 /* ============================================================
-   12. RESPONSIVE
+   12. RESPONSIVE — TABLET / ESCRITORIO ANGOSTO (referencia general)
    ============================================================ */
 @media (max-width: 640px) {
   .hero-status__title { font-size: 0.85rem; }
   .hero-status__stats-row { grid-template-columns: 1fr; justify-items: center; }
   .quest-list { grid-template-columns: 1fr; }
   .hero-status__ornament { display: none; }
+}
+
+
+/* ============================================================
+   13. RESPONSIVE MÓVIL / ANDROID (<= 480px)
+   ============================================================
+   Objetivo: que se sienta como app nativa, no como página web.
+   - Dashboard fluido y centrado, sin scroll horizontal.
+   - Fuente pixel escalada proporcionalmente, sin desbordes.
+   - Inputs y botones táctiles (altura mínima cómoda ~44-48px).
+   - Padding ajustado para aprovechar el viewport del teléfono.
+   ============================================================ */
+@media (max-width: 480px) {
+
+  /* --- 1. Dashboard fluido y centrado, sin scroll horizontal --- */
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
+  }
+
+  body {
+    padding: 0.5rem 0.4rem;
+    /* Centrado vertical real del "juego" dentro del viewport del celular */
+    min-height: 100vh;
+    min-height: 100dvh; /* alto dinámico real en navegadores Android modernos */
+    align-items: center;
+  }
+
+  /* El contenedor principal (game-screen) se vuelve totalmente elástico:
+     ocupa el ancho disponible del teléfono sin márgenes laterales
+     excesivos ni desbordarse nunca fuera del viewport. */
+  .game-screen {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0.55rem;
+    gap: 0.55rem;
+    /* Sombra perimetral más contenida para no "salirse" en pantallas chicas */
+    box-shadow: var(--shadow-relief), 0 0 0 3px var(--color-navy-deep);
+  }
+
+  /* --- 2. Escalamiento proporcional de la fuente pixel art --- */
+
+  .hero-status {
+    padding: 0.65rem;
+    gap: 0.65rem;
+  }
+
+  .hero-status__titlebar {
+    gap: 0.35rem;
+  }
+
+  .hero-status__ornament {
+    height: 26px;
+    flex: 0 0 18px; /* se reducen a un simple acento, no compiten por espacio */
+  }
+
+  .hero-status__title-panel {
+    padding: 0.4rem 0.9rem;
+    flex: 1 1 auto;
+  }
+
+  .hero-status__title {
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    white-space: normal; /* permite que "HABIT HERO" respire si el ancho aprieta */
+    text-align: center;
+  }
+
+  /* La fila de stats pasa a columna única y centrada, con cada bloque
+     ocupando el ancho completo para que nada se corte */
+  .hero-status__stats-row {
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+    gap: 0.6rem;
+  }
+
+  .hero-status__level-col {
+    justify-content: center;
+  }
+
+  .hero-status__level {
+    font-size: 1rem;
+    text-align: center;
+  }
+
+  .hero-status__bar-wrapper {
+    width: 100%;
+  }
+
+  .xp-bar {
+    height: 20px;
+  }
+
+  .xp-bar__label {
+    font-size: 0.7rem;
+    letter-spacing: 0.3px;
+    /* Evita que "EXPERIENCIA: X / Y XP" se corte en pantallas muy angostas */
+    word-break: break-word;
+  }
+
+  .hero-status__avatar-col {
+    order: -1; /* el avatar sube arriba del todo, look más de "app" */
+  }
+
+  .hero-status__avatar {
+    width: 44px;
+    height: 50px;
+  }
+
+  .section-title {
+    font-size: 0.62rem;
+    margin-bottom: 0.6rem;
+  }
+
+  /* Tarjetas de misión: texto e icono escalados para que nunca se corten
+     ni desborden su caja, sin importar el largo del nombre de la misión */
+  .quest-list {
+    gap: 0.5rem;
+  }
+
+  .quest-card {
+    padding: 0.5rem 0.55rem;
+    gap: 0.45rem;
+  }
+
+  .quest-card__text {
+    font-size: 0.5rem;
+    line-height: 1.6;
+  }
+
+  .quest-card__reward {
+    font-size: 0.72rem;
+  }
+
+  .quest-card__icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .quest-card__checkbox {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* --- 3. Panel de control: input + botones aptos para dedos ---
+     Usamos flex-wrap (sin tocar el HTML) para que el input de texto
+     ocupe toda la primera línea, y el input de XP + botón "Añadir" se
+     acomoden juntos debajo, todo con altura táctil cómoda (~48px). */
+  .quest-form__row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .quest-form__input {
+    flex-basis: 100%;
+    width: 100%;
+    min-height: 48px;
+    font-size: 1rem; /* evita el zoom automático de Android/iOS al enfocar */
+  }
+
+  .quest-form__xp-input {
+    flex: 1 1 30%;
+    min-height: 48px;
+    font-size: 1rem;
+  }
+
+  #quest-submit-btn {
+    flex: 2 1 65%;
+    min-height: 48px;
+    font-size: 0.55rem;
+    justify-content: center;
+  }
+
+  /* Acciones Editar/Eliminar por tarjeta: botones estirados y táctiles */
+  .quest-card__actions {
+    gap: 0.5rem;
+  }
+
+  .btn--edit,
+  .btn--delete {
+    flex: 1 1 0;
+    min-height: 44px;
+    font-size: 0.5rem;
+    justify-content: center;
+  }
+
+  /* --- 4. Acabado de app nativa: aprovechar el viewport --- */
+
+  .game-footer {
+    padding: 0.4rem;
+    font-size: 0.6rem;
+  }
+
+  .fx-layer {
+    left: 0.5rem;
+    right: 0.5rem;
+    top: 0.5rem;
+  }
+
+  .fx-toast {
+    font-size: 0.5rem;
+    padding: 0.6rem 0.7rem;
+  }
+}
+
+
+/* ============================================================
+   14. RESPONSIVE MÓVIL MUY PEQUEÑO (<= 340px)
+   ============================================================
+   Gama baja Android (ej. pantallas de 320px de ancho lógico):
+   un ajuste extra para que el título y las tarjetas sigan sin cortarse.
+   ============================================================ */
+@media (max-width: 340px) {
+  .hero-status__title { font-size: 0.6rem; }
+  .quest-card__text { font-size: 0.46rem; }
+  .quest-form__xp-input { flex-basis: 100%; }
+  #quest-submit-btn { flex-basis: 100%; }
 }
