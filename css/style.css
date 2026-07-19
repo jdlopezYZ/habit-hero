@@ -660,23 +660,30 @@ input { font-family: var(--font-retro); }
     width: 100%;
   }
 
+  /* --- 4. Centrado general del contenedor (.game-screen) en ambos ejes --- */
   body {
     padding: 0.5rem 0.4rem;
-    /* Centrado vertical real del "juego" dentro del viewport del celular */
     min-height: 100vh;
     min-height: 100dvh; /* alto dinámico real en navegadores Android modernos */
-    align-items: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;    /* centrado horizontal */
+    justify-content: center; /* centrado vertical */
   }
 
   /* El contenedor principal (game-screen) se vuelve totalmente elástico:
      ocupa el ancho disponible del teléfono sin márgenes laterales
-     excesivos ni desbordarse nunca fuera del viewport. */
+     excesivos ni desbordarse nunca fuera del viewport, y queda
+     perfectamente centrado dentro de body. */
   .game-screen {
     width: 100%;
     max-width: 100%;
     margin: 0 auto;
     padding: 0.55rem;
     gap: 0.55rem;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     /* Sombra perimetral más contenida para no "salirse" en pantallas chicas */
     box-shadow: var(--shadow-relief), 0 0 0 3px var(--color-navy-deep);
   }
@@ -689,17 +696,21 @@ input { font-family: var(--font-retro); }
   }
 
   .hero-status__titlebar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     gap: 0.35rem;
   }
 
   .hero-status__ornament {
-    height: 26px;
-    flex: 0 0 18px; /* se reducen a un simple acento, no compiten por espacio */
+    display: none; /* en móvil no aportan, y estorban al centrado del banner */
   }
 
   .hero-status__title-panel {
+    display: block;
+    width: fit-content;
+    margin: 0 auto 15px auto;
     padding: 0.4rem 0.9rem;
-    flex: 1 1 auto;
   }
 
   .hero-status__title {
@@ -786,33 +797,41 @@ input { font-family: var(--font-retro); }
   }
 
   /* --- 3. Panel de control: input + botones aptos para dedos ---
-     Usamos flex-wrap (sin tocar el HTML) para que el input de texto
-     ocupe toda la primera línea, y el input de XP + botón "Añadir" se
-     acomoden juntos debajo, todo con altura táctil cómoda (~48px). */
+     Fila superior: input de texto + input de XP, simétricos entre sí.
+     Fila inferior: botón "Añadir" a ancho completo, perfectamente
+     centrado, con separación limpia respecto a la fila de arriba. */
   .quest-form__row {
+    display: flex;
     flex-direction: row;
     flex-wrap: wrap;
     gap: 0.5rem;
   }
 
   .quest-form__input {
-    flex-basis: 100%;
-    width: 100%;
+    flex: 1 1 65%;
+    min-width: 0;
     min-height: 48px;
     font-size: 1rem; /* evita el zoom automático de Android/iOS al enfocar */
   }
 
   .quest-form__xp-input {
-    flex: 1 1 30%;
+    flex: 1 1 28%;
     min-height: 48px;
     font-size: 1rem;
+    text-align: center;
   }
 
   #quest-submit-btn {
-    flex: 2 1 65%;
+    flex-basis: 100%;
+    width: 100%;
+    margin-top: 0.5rem;
     min-height: 48px;
     font-size: 0.55rem;
+    text-align: center;
+    display: flex;
     justify-content: center;
+    align-items: center;
+    gap: 0.4rem;
   }
 
   /* Acciones Editar/Eliminar por tarjeta: botones estirados y táctiles */
