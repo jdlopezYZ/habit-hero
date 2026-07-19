@@ -11,6 +11,25 @@
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="css/style.css">
+
+  <!-- ===================== PWA: Manifest e íconos ===================== -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#9D6DFB">
+
+  <!-- Ícono usado por Android al instalar / en el launcher -->
+  <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="img/icon-512.png">
+
+  <!-- Soporte "Añadir a pantalla de inicio" en navegadores basados en
+       Chromium para Android (Chrome, Edge, Samsung Internet, etc.) -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="Habit Hero">
+
+  <!-- Compatibilidad con iOS/Safari, por si se abre desde ese navegador -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Habit Hero">
+  <link rel="apple-touch-icon" href="img/icon-192.png">
 </head>
 <body>
 
@@ -129,5 +148,21 @@
   <script src="js/taskService.js"></script>
   <script src="js/heroService.js"></script>
   <script src="js/app.js"></script>
+
+  <!-- ===================== PWA: registro del Service Worker ===================== -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker
+          .register('sw.js')
+          .then((registration) => {
+            console.log('[PWA] Service Worker registrado con éxito:', registration.scope);
+          })
+          .catch((error) => {
+            console.error('[PWA] Error al registrar el Service Worker:', error);
+          });
+      });
+    }
+  </script>
 </body>
 </html>
