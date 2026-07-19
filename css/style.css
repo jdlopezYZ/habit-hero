@@ -306,7 +306,17 @@ input { font-family: var(--font-retro); }
   padding: 0.6rem 0.7rem;
 }
 
-.quest-card__checkbox-wrapper { display: flex; cursor: pointer; }
+.quest-card__checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  /* Área táctil real de 44px (mínimo recomendado en Android/iOS), aunque
+     el checkbox se vea visualmente más pequeño (22px). El padding infla
+     la zona de toque sin alterar el tamaño visual del cuadrado. */
+  padding: 11px;
+  margin: -11px;
+}
 
 .quest-card__checkbox {
   appearance: none;
@@ -318,11 +328,33 @@ input { font-family: var(--font-retro); }
   position: relative;
   cursor: pointer;
   flex-shrink: 0;
+  transition: transform 0.1s ease;
 }
 
 .quest-card__checkbox:checked {
   background: var(--color-purple);
   border-color: var(--color-purple-bright);
+}
+
+/* Feedback táctil inmediato al presionar (antes no existía ningún :active
+   en toda la tarjeta ni en el checkbox — en móvil, sin este feedback, el
+   usuario no tiene certeza visual de que su toque registró). */
+.quest-card__checkbox-wrapper:active .quest-card__checkbox {
+  transform: scale(0.9);
+}
+
+.quest-card:active {
+  filter: brightness(1.05);
+}
+
+/* Accesibilidad: anillo de foco visible solo para navegación por teclado
+   (no aparece en toques táctiles normales, gracias a :focus-visible). */
+.quest-card__checkbox:focus-visible,
+.quest-form__input:focus-visible,
+.quest-form__xp-input:focus-visible,
+.btn:focus-visible {
+  outline: 2px solid var(--color-cyan-bright);
+  outline-offset: 2px;
 }
 
 .quest-card__checkbox:checked::after {
@@ -702,9 +734,9 @@ input { font-family: var(--font-retro); }
     gap: 0.35rem;
   }
 
-  .hero-status__ornament {
-    display: none; /* en móvil no aportan, y estorban al centrado del banner */
-  }
+  /* .hero-status__ornament ya se ocultó en el breakpoint de 640px
+     (cascada natural: todo lo ≤480px también es ≤640px). No se repite
+     aquí para evitar la regla duplicada exacta que había antes. */
 
   .hero-status__title-panel {
     display: block;
