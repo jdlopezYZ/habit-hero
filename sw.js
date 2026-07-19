@@ -12,7 +12,7 @@
  *  instalados a descargar la versión nueva en su próxima visita.
  * ============================================================ */
 
-const CACHE_VERSION = 'habit-hero-v2';
+const CACHE_VERSION = 'habit-hero-v3';
 
 // "App shell": todo lo necesario para que la interfaz cargue al
 // instante, incluso con conexión lenta o sin conexión.
