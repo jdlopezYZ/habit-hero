@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="css/style.css">
 
   <!-- ===================== PWA: Manifest e íconos ===================== -->
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#9D6DFB">
 
   <!-- Ícono usado por Android al instalar / en el launcher -->
@@ -150,17 +150,35 @@
 
   </div>
 
+  <!-- ===================== PWA: banner propio "¿Deseas instalar esta app?" =====================
+       Sustituye la dependencia del mini-infobar automático de Chrome (que solo aparece
+       según heurísticas de "engagement" del navegador y a veces tarda varias visitas).
+       Este banner se muestra nosotros mismos en cuanto Chrome nos avisa que la app
+       cumple los criterios de instalación (evento beforeinstallprompt). -->
+  <div class="install-banner" id="install-banner" role="dialog" aria-live="polite" hidden>
+    <img src="img/icon-192.png" alt="" class="install-banner__icon" width="40" height="40">
+    <div class="install-banner__text">
+      <p class="install-banner__title">¿Deseas instalar esta app?</p>
+      <p class="install-banner__subtitle">Accede a HABIT HERO desde tu pantalla de inicio</p>
+    </div>
+    <div class="install-banner__actions">
+      <button type="button" class="btn btn--primary install-banner__btn" id="install-banner-accept">INSTALAR</button>
+      <button type="button" class="install-banner__dismiss" id="install-banner-dismiss" aria-label="Cerrar aviso de instalación">✕</button>
+    </div>
+  </div>
+
   <!-- Orden de carga: primero los servicios de datos (misiones y RPG), luego la capa de presentación -->
   <script src="js/taskService.js"></script>
   <script src="js/heroService.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/pwaInstall.js"></script>
 
   <!-- ===================== PWA: registro del Service Worker ===================== -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker
-          .register('sw.js')
+          .register('./sw.js')
           .then((registration) => {
             console.log('[PWA] Service Worker registrado con éxito:', registration.scope);
           })

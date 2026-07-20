@@ -12,7 +12,7 @@
  *  instalados a descargar la versión nueva en su próxima visita.
  * ============================================================ */
 
-const CACHE_VERSION = 'habit-hero-v3';
+const CACHE_VERSION = 'habit-hero-v5';
 
 // "App shell": todo lo necesario para que la interfaz cargue al
 // instante, incluso con conexión lenta o sin conexión.
@@ -23,6 +23,7 @@ const APP_SHELL_FILES = [
   './js/taskService.js',
   './js/heroService.js',
   './js/app.js',
+  './js/pwaInstall.js',
   './img/icon-192.png',
   './img/icon-512.png'
 ];
