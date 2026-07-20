@@ -304,6 +304,22 @@
           : `¡SUBISTE DE NIVEL! Ahora eres nivel ${state.level}`;
         showToast(label, 'levelup');
       }
+    } else {
+      // Al desmarcar una misión, se revierte exactamente la XP que había
+      // otorgado (updated.xpValue), usando subtractXp() para manejar el
+      // "de-leveling" en cascada si hace falta bajar de nivel (sin nunca
+      // caer por debajo de nivel 1). Esto evita el exploit de marcar y
+      // desmarcar la misma misión para acumular XP infinita.
+      const { leveledDown, levelsLost, state } = HeroService.subtractXp(updated.xpValue);
+
+      showToast(`-${updated.xpValue} XP`, 'decay');
+
+      if (leveledDown) {
+        const label = levelsLost > 1
+          ? `Perdiste ${levelsLost} niveles. Ahora eres nivel ${state.level}`
+          : `Bajaste de nivel. Ahora eres nivel ${state.level}`;
+        showToast(label, 'decay');
+      }
     }
 
     renderHeroStatus();
