@@ -304,22 +304,6 @@
           : `¡SUBISTE DE NIVEL! Ahora eres nivel ${state.level}`;
         showToast(label, 'levelup');
       }
-    } else {
-      // Al desmarcar una misión, se revierte exactamente la XP que había
-      // otorgado (updated.xpValue), usando subtractXp() para manejar el
-      // "de-leveling" en cascada si hace falta bajar de nivel (sin nunca
-      // caer por debajo de nivel 1). Esto evita el exploit de marcar y
-      // desmarcar la misma misión para acumular XP infinita.
-      const { leveledDown, levelsLost, state } = HeroService.subtractXp(updated.xpValue);
-
-      showToast(`-${updated.xpValue} XP`, 'decay');
-
-      if (leveledDown) {
-        const label = levelsLost > 1
-          ? `Perdiste ${levelsLost} niveles. Ahora eres nivel ${state.level}`
-          : `Bajaste de nivel. Ahora eres nivel ${state.level}`;
-        showToast(label, 'decay');
-      }
     }
 
     renderHeroStatus();
@@ -369,6 +353,74 @@
     renderQuestList();
   }
 
+  // ---- Reinicio diario (Daily Reset) ----
+
+  // Clave de localStorage donde guardamos la fecha del último reinicio.
+  const LAST_RESET_KEY = 'lastResetDate';
+
+  /**
+   * Devuelve la fecha "de hoy" en formato YYYY-MM-DD según el reloj local
+   * del dispositivo (no UTC), para que el corte sea a medianoche local.
+   * @returns {string}
+   */
+  function getTodayDateString() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
+   * Revisa si cambió el día desde el último reinicio guardado en
+   * localStorage. Si cambió:
+   *   a) Desmarca (completed = false) todas las misiones diarias.
+   *   b) Actualiza 'lastResetDate' con la fecha de hoy.
+   *   c) Persiste el nuevo estado y refresca la UI.
+   *
+   * IMPORTANTE: Este reinicio NUNCA toca HeroService (XP/nivel), solo
+   * el estado 'completed' de las misiones en TaskService. La XP ganada
+   * el día anterior se conserva intacta.
+   *
+   * @returns {boolean} true si se ejecutó un reinicio, false si no hacía falta.
+   */
+  function checkDailyReset() {
+    const todayStr = getTodayDateString();
+    const lastResetStr = localStorage.getItem(LAST_RESET_KEY);
+
+    // Primera vez que se corre la app: solo registra la fecha, sin resetear.
+    if (!lastResetStr) {
+      localStorage.setItem(LAST_RESET_KEY, todayStr);
+      return false;
+    }
+
+    // Si la fecha guardada es igual a la de hoy, no hay nada que hacer.
+    if (lastResetStr === todayStr) {
+      return false;
+    }
+
+    // ---- Cambió el día: desmarcar todas las misiones completadas ----
+    const quests = TaskService.getAll();
+
+    quests.forEach(quest => {
+      if (quest.completed) {
+        // Reutilizamos toggleComplete() porque es la única forma pública
+        // de mutar 'completed' sin duplicar lógica de persistencia.
+        // No otorga ni resta XP: HeroService no se toca en ningún momento.
+        TaskService.toggleComplete(quest.id);
+      }
+    });
+
+    // Actualiza la fecha de control del reinicio.
+    localStorage.setItem(LAST_RESET_KEY, todayStr);
+
+    // Refresca la interfaz (la XP/nivel del héroe no cambia).
+    renderQuestList();
+    renderHeroStatus();
+
+    return true;
+  }
+
   // ---- Decay periódico ----
 
   /**
@@ -396,10 +448,25 @@
   function init() {
     questFormEl.addEventListener('submit', handleAddQuest);
 
+    // Reinicio diario: revisa al cargar si ya cambió el día y, de ser
+    // así, desmarca las misiones completadas (sin tocar la XP).
+    checkDailyReset();
+
     // Revisa decay una vez al cargar (por si el usuario estuvo fuera)
     // y luego periódicamente mientras la pestaña esté abierta.
     checkDecay();
     window.setInterval(checkDecay, DECAY_CHECK_INTERVAL_MS);
+
+    // Si la app queda abierta en segundo plano (PWA) durante la noche,
+    // 'visibilitychange' y 'focus' detectan cuando vuelve a primer plano
+    // para aplicar el reinicio de medianoche sin necesidad de recargar.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        checkDailyReset();
+      }
+    });
+
+    window.addEventListener('focus', checkDailyReset);
 
     renderHeroStatus();
     renderQuestList();
