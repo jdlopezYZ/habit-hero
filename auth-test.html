@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Habit Hero — Prueba de Autenticación</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 420px; margin: 40px auto; padding: 0 16px; }
+    input { display: block; width: 100%; margin: 8px 0; padding: 8px; box-sizing: border-box; }
+    button { margin: 4px 4px 4px 0; padding: 8px 14px; cursor: pointer; }
+    pre { background: #111; color: #0f0; padding: 12px; border-radius: 6px; white-space: pre-wrap; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <h1>🧪 Prueba aislada de Auth</h1>
+  <p>Esta página NO es parte de Habit Hero — es solo para verificar que Supabase Auth funciona antes de conectarlo al juego real.</p>
+
+  <input type="email" id="email" placeholder="correo@ejemplo.com" value="">
+  <input type="password" id="password" placeholder="contraseña (mín. 6 caracteres)" value="">
+
+  <button id="btn-signup">Registrarse</button>
+  <button id="btn-signin">Iniciar sesión</button>
+  <button id="btn-signout">Cerrar sesión</button>
+  <button id="btn-session">Ver sesión actual</button>
+
+  <h3>Resultado:</h3>
+  <pre id="output">(nada todavía)</pre>
+
+  <script type="module">
+    import { signUp, signIn, signOut, getSession, onAuthStateChange } from './js/authService.js';
+
+    const output = document.getElementById('output');
+    const emailEl = document.getElementById('email');
+    const passwordEl = document.getElementById('password');
+
+    function log(label, data) {
+      output.textContent = `${label}:\n${JSON.stringify(data, null, 2)}`;
+    }
+
+    document.getElementById('btn-signup').addEventListener('click', async () => {
+      const result = await signUp(emailEl.value, passwordEl.value);
+      log('signUp', result);
+    });
+
+    document.getElementById('btn-signin').addEventListener('click', async () => {
+      const result = await signIn(emailEl.value, passwordEl.value);
+      log('signIn', result);
+    });
+
+    document.getElementById('btn-signout').addEventListener('click', async () => {
+      const result = await signOut();
+      log('signOut', result);
+    });
+
+    document.getElementById('btn-session').addEventListener('click', async () => {
+      const session = await getSession();
+      log('getSession', session);
+    });
+
+    // Log automático cada vez que cambia el estado de sesión
+    onAuthStateChange((session) => {
+      console.log('[onAuthStateChange]', session ? `Sesión activa: ${session.user.email}` : 'Sin sesión');
+    });
+  </script>
+</body>
+</html>

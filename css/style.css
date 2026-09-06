@@ -93,6 +93,13 @@ input { font-family: var(--font-retro); }
   gap: 0.75rem;
 }
 
+/* Garantiza que el atributo [hidden] siempre oculte el panel, incluso
+   compitiendo con el display:flex de arriba (usado por authUI.js para
+   alternar entre la pantalla de login y el juego). */
+.game-screen[hidden] {
+  display: none;
+}
+
 
 /* ============================================================
    4. HEADER — TÍTULO Y ESTADO DEL HÉROE

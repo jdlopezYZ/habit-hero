@@ -33,10 +33,68 @@
 </head>
 <body>
 
+  <!-- ===================== AUTENTICACIÓN ===================== -->
+  <!-- Pantalla de login/registro. Se muestra u oculta vía JS (authUI.js)
+       según haya o no sesión activa en Supabase. Reutiliza las mismas
+       clases visuales (.btn, .quest-form__input) que el resto del juego
+       para mantener consistencia con el estilo pixel art. -->
+  <div class="game-screen" id="auth-screen" hidden>
+    <header class="hero-status">
+      <div class="hero-status__titlebar">
+        <span class="hero-status__ornament hero-status__ornament--left" aria-hidden="true"></span>
+        <div class="hero-status__title-panel">
+          <h1 class="hero-status__title">HABIT HERO</h1>
+        </div>
+        <span class="hero-status__ornament hero-status__ornament--right" aria-hidden="true"></span>
+      </div>
+    </header>
+
+    <main class="game-board">
+      <section class="quest-form-section">
+        <h2 class="section-title" id="auth-form-title">INICIAR SESIÓN</h2>
+
+        <form id="auth-form" class="quest-form" autocomplete="off">
+          <div class="quest-form__row" style="flex-direction: column; align-items: stretch;">
+            <label for="auth-email" class="visually-hidden">Correo electrónico</label>
+            <input
+              type="email"
+              id="auth-email"
+              class="quest-form__input"
+              placeholder="Correo electrónico"
+              required
+            >
+
+            <label for="auth-password" class="visually-hidden">Contraseña</label>
+            <input
+              type="password"
+              id="auth-password"
+              class="quest-form__input"
+              placeholder="Contraseña (mín. 6 caracteres)"
+              minlength="6"
+              required
+            >
+
+            <button type="submit" class="btn btn--primary" id="auth-submit-btn">
+              INICIAR SESIÓN
+            </button>
+          </div>
+        </form>
+
+        <p id="auth-error" class="hero-status__decay-warning" hidden></p>
+
+        <p style="margin-top: 1rem; text-align: center;">
+          <button type="button" class="btn" id="auth-toggle-mode">
+            ¿NO TIENES CUENTA? REGÍSTRATE
+          </button>
+        </p>
+      </section>
+    </main>
+  </div>
+
   <!-- Wrapper visual: "pantalla" general del juego, para poder darle el
        marco pixelado exterior y la sombra perimetral única que se ve en
        el diseño de referencia -->
-  <div class="game-screen" id="game-screen">
+  <div class="game-screen" id="game-screen" hidden>
 
     <!-- ===================== HEADER: ESTADO DEL HÉROE ===================== -->
     <header class="hero-status" id="hero-status">
@@ -82,6 +140,9 @@
               height="192"
             >
           </div>
+          <button type="button" class="btn btn--delete" id="btn-logout" style="margin-top: 0.5rem; font-size: 0.5rem;">
+            SALIR
+          </button>
         </div>
       </div>
     </header>
@@ -167,11 +228,15 @@
     </div>
   </div>
 
-  <!-- Orden de carga: primero los servicios de datos (misiones y RPG), luego la capa de presentación -->
-  <script src="js/taskService.js"></script>
-  <script src="js/heroService.js"></script>
-  <script src="js/app.js"></script>
-  <script src="js/pwaInstall.js"></script>
+  <!-- ES Modules: app.js importa taskService.js y heroService.js directamente,
+       por eso ya no se cargan como <script> sueltos. El orden de ejecución
+       real (servicios antes que la capa de presentación) lo garantiza ahora
+       el propio import, no el orden de las etiquetas.
+       authUI.js decide qué pantalla se muestra (login o juego); no depende
+       de app.js ni viceversa, así que el orden entre ambos no importa. -->
+  <script type="module" src="js/authUI.js"></script>
+  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/pwaInstall.js"></script>
 
   <!-- ===================== PWA: registro del Service Worker ===================== -->
   <script>

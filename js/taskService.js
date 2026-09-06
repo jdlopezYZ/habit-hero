@@ -1,90 +1,108 @@
 /**
  * ============================================================
- *  TASK SERVICE — Habit Hero
+ *  TASK SERVICE — Habit Hero (Supabase)
  * ============================================================
- *  Capa de datos pura (estilo "API interna").
+ *  Capa de datos pura (estilo "API interna"), ahora respaldada
+ *  por la tabla `quests` de Supabase en vez de localStorage.
  *  - No manipula el DOM.
  *  - No conoce nada de la interfaz visual.
- *  - Su única responsabilidad es leer/escribir el array de
- *    misiones en localStorage y exponer un CRUD sencillo.
+ *  - Misma API pública que la versión con localStorage, pero
+ *    cada función ahora es async porque implica una petición
+ *    de red. RLS garantiza que cada usuario solo vea/mute sus
+ *    propias misiones — no hace falta filtrar user_id a mano
+ *    en los SELECT.
  *
- *  Estructura de una misión (Quest):
- *  {
- *    id: string,          // identificador único
- *    text: string,        // nombre de la misión
- *    completed: boolean,  // estado actual
- *    xpValue: number,     // XP que otorga esta misión concreta al completarse
- *    createdAt: string,   // ISO date de creación
- *    completedAt: string | null // ISO date del último "completado"
- *  }
- *
- *  NOTA: completedAt se deja preparado aquí porque la Sesión 2
- *  (mecánica de XP y decay por inactividad) lo necesitará para
- *  calcular el tiempo transcurrido desde la última acción.
+ *  Mapeo de columnas (DB → objeto Quest en memoria):
+ *    id            -> id
+ *    text          -> text
+ *    completed     -> completed
+ *    xp_value      -> xpValue
+ *    created_at    -> createdAt
+ *    completed_at  -> completedAt
  * ============================================================
  */
 
-const TaskService = (() => {
+import { supabase } from './supabaseClient.js';
 
-  const STORAGE_KEY = 'habit-hero:quests';
+export const TaskService = (() => {
 
   /**
-   * Genera un id único simple (sin dependencias externas).
-   * Combina timestamp + número aleatorio.
+   * Convierte una fila de la tabla `quests` (snake_case) al objeto
+   * Quest en memoria (camelCase) que ya usa el resto de la app.
+   * @param {Object} row
+   * @returns {Object}
    */
-  function generateId() {
-    return `quest_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  function mapRowToQuest(row) {
+    return {
+      id: row.id,
+      text: row.text,
+      completed: row.completed,
+      xpValue: row.xp_value,
+      createdAt: row.created_at,
+      completedAt: row.completed_at
+    };
   }
 
   /**
-   * Lee el array completo de misiones desde localStorage.
-   * Si no existe nada guardado, o el JSON está corrupto,
-   * devuelve un array vacío de forma segura.
-   * @returns {Array<Object>}
+   * Devuelve el id del usuario actualmente autenticado.
+   * @returns {Promise<string|null>}
    */
-  function getAll() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (error) {
-      console.error('[TaskService] Error al leer localStorage:', error);
+  async function getCurrentUserId() {
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) {
+      console.error('[TaskService] No hay usuario autenticado.');
+      return null;
+    }
+    return data.user.id;
+  }
+
+  /**
+   * Obtiene todas las misiones del usuario actual, ordenadas por
+   * fecha de creación (más antigua primero, igual que el array de
+   * localStorage crecía con .push()).
+   * @returns {Promise<Array<Object>>}
+   */
+  async function getAll() {
+    const { data, error } = await supabase
+      .from('quests')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('[TaskService] Error al leer misiones:', error.message);
       return [];
     }
-  }
 
-  /**
-   * Persiste el array completo de misiones en localStorage.
-   * @param {Array<Object>} quests
-   * @returns {boolean} éxito de la operación
-   */
-  function saveAll(quests) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(quests));
-      return true;
-    } catch (error) {
-      console.error('[TaskService] Error al guardar en localStorage:', error);
-      return false;
-    }
+    return data.map(mapRowToQuest);
   }
 
   /**
    * Obtiene una misión por su id.
    * @param {string} id
-   * @returns {Object|undefined}
+   * @returns {Promise<Object|undefined>}
    */
-  function getById(id) {
-    return getAll().find(quest => quest.id === id);
+  async function getById(id) {
+    const { data, error } = await supabase
+      .from('quests')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error || !data) {
+      if (error) console.error('[TaskService] Error al buscar misión:', error.message);
+      return undefined;
+    }
+
+    return mapRowToQuest(data);
   }
 
   /**
-   * Añade una nueva misión.
-   * @param {string} text - Nombre/descripción de la misión
-   * @param {number} [xpValue=10] - XP que otorgará esta misión concreta al completarse
-   * @returns {Object} la misión recién creada
+   * Añade una nueva misión para el usuario actual.
+   * @param {string} text
+   * @param {number} [xpValue=10]
+   * @returns {Promise<Object|null>} la misión recién creada, o null si falló
    */
-  function add(text, xpValue = 10) {
+  async function add(text, xpValue = 10) {
     const trimmedText = String(text).trim();
 
     if (!trimmedText) {
@@ -94,99 +112,129 @@ const TaskService = (() => {
     const parsedXp = Number(xpValue);
     const safeXp = Number.isFinite(parsedXp) && parsedXp > 0 ? Math.round(parsedXp) : 10;
 
-    const newQuest = {
-      id: generateId(),
-      text: trimmedText,
-      completed: false,
-      xpValue: safeXp,
-      createdAt: new Date().toISOString(),
-      completedAt: null
-    };
+    const userId = await getCurrentUserId();
+    if (!userId) return null;
 
-    const quests = getAll();
-    quests.push(newQuest);
-    saveAll(quests);
+    const { data, error } = await supabase
+      .from('quests')
+      .insert({
+        user_id: userId,
+        text: trimmedText,
+        xp_value: safeXp
+      })
+      .select()
+      .single();
 
-    return newQuest;
+    if (error) {
+      console.error('[TaskService] Error al añadir misión:', error.message);
+      return null;
+    }
+
+    return mapRowToQuest(data);
   }
 
   /**
    * Alterna el estado completado/pendiente de una misión.
-   * Actualiza completedAt en consecuencia.
+   * Actualiza completed_at en consecuencia.
    * @param {string} id
-   * @returns {Object|null} la misión actualizada, o null si no existe
+   * @returns {Promise<Object|null>} la misión actualizada, o null si no existe
    */
-  function toggleComplete(id) {
-    const quests = getAll();
-    const index = quests.findIndex(quest => quest.id === id);
-
-    if (index === -1) {
+  async function toggleComplete(id) {
+    const current = await getById(id);
+    if (!current) {
       console.warn(`[TaskService] No se encontró la misión con id: ${id}`);
       return null;
     }
 
-    quests[index].completed = !quests[index].completed;
-    quests[index].completedAt = quests[index].completed
-      ? new Date().toISOString()
-      : null;
+    const newCompleted = !current.completed;
 
-    saveAll(quests);
-    return quests[index];
+    const { data, error } = await supabase
+      .from('quests')
+      .update({
+        completed: newCompleted,
+        completed_at: newCompleted ? new Date().toISOString() : null
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[TaskService] Error al actualizar misión:', error.message);
+      return null;
+    }
+
+    return mapRowToQuest(data);
   }
 
   /**
    * Edita el texto de una misión existente.
    * @param {string} id
    * @param {string} newText
-   * @returns {Object|null} la misión actualizada, o null si no existe
+   * @returns {Promise<Object|null>} la misión actualizada, o null si no existe
    */
-  function editText(id, newText) {
+  async function editText(id, newText) {
     const trimmedText = String(newText).trim();
 
     if (!trimmedText) {
       throw new Error('[TaskService] El nuevo texto de la misión no puede estar vacío.');
     }
 
-    const quests = getAll();
-    const index = quests.findIndex(quest => quest.id === id);
+    const { data, error } = await supabase
+      .from('quests')
+      .update({ text: trimmedText })
+      .eq('id', id)
+      .select()
+      .single();
 
-    if (index === -1) {
-      console.warn(`[TaskService] No se encontró la misión con id: ${id}`);
+    if (error) {
+      console.error('[TaskService] Error al editar misión:', error.message);
       return null;
     }
 
-    quests[index].text = trimmedText;
-    saveAll(quests);
-    return quests[index];
+    return mapRowToQuest(data);
   }
 
   /**
    * Elimina una misión por su id.
    * @param {string} id
-   * @returns {boolean} true si se eliminó, false si no existía
+   * @returns {Promise<boolean>} true si se eliminó, false si falló
    */
-  function remove(id) {
-    const quests = getAll();
-    const filtered = quests.filter(quest => quest.id !== id);
+  async function remove(id) {
+    const { error } = await supabase
+      .from('quests')
+      .delete()
+      .eq('id', id);
 
-    if (filtered.length === quests.length) {
-      console.warn(`[TaskService] No se encontró la misión con id: ${id}`);
+    if (error) {
+      console.error('[TaskService] Error al eliminar misión:', error.message);
       return false;
     }
 
-    saveAll(filtered);
     return true;
   }
 
   /**
-   * Elimina TODAS las misiones. Útil para reinicios/tests.
-   * @returns {boolean}
+   * Elimina TODAS las misiones del usuario actual. Útil para reinicios/tests.
+   * @returns {Promise<boolean>}
    */
-  function clearAll() {
-    return saveAll([]);
+  async function clearAll() {
+    const userId = await getCurrentUserId();
+    if (!userId) return false;
+
+    const { error } = await supabase
+      .from('quests')
+      .delete()
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('[TaskService] Error al limpiar misiones:', error.message);
+      return false;
+    }
+
+    return true;
   }
 
-  // API pública del servicio
+  // API pública del servicio (misma forma que la versión localStorage)
   return {
     getAll,
     getById,

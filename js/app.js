@@ -19,6 +19,9 @@
  * ============================================================
  */
 
+import { TaskService } from './taskService.js';
+import { HeroService } from './heroService.js';
+
 (() => {
 
   // ---- Referencias a elementos del DOM (ya existentes en index.html) ----
@@ -92,8 +95,8 @@
    * de HeroService. Es idempotente: se puede llamar tantas veces como haga
    * falta para refrescar la UI.
    */
-  function renderHeroStatus() {
-    const state = HeroService.getState();
+  async function renderHeroStatus() {
+    const state = await HeroService.getState();
     const xpNeeded = HeroService.xpToNextLevel(state.level);
     const percentage = Math.min(100, Math.round((state.xp / xpNeeded) * 100));
 
@@ -103,7 +106,7 @@
     xpBarLabelEl.textContent = `EXPERIENCIA: ${state.xp} / ${xpNeeded} XP`;
     xpBarEl.setAttribute('aria-valuenow', String(percentage));
 
-    const showWarning = HeroService.isDecayWarning();
+    const showWarning = await HeroService.isDecayWarning();
     decayWarningEl.hidden = !showWarning;
   }
 
@@ -203,12 +206,12 @@
     input.focus();
     input.select();
 
-    const commit = () => {
+    const commit = async () => {
       const newText = input.value.trim();
       if (newText && newText !== quest.text) {
-        TaskService.editText(quest.id, newText);
+        await TaskService.editText(quest.id, newText);
       }
-      renderQuestList();
+      await renderQuestList();
     };
 
     const cancel = () => {
@@ -227,8 +230,8 @@
    * Repinta la lista completa de misiones a partir de TaskService.getAll().
    * Muestra/oculta el mensaje de "lista vacía" según corresponda.
    */
-  function renderQuestList() {
-    const quests = TaskService.getAll();
+  async function renderQuestList() {
+    const quests = await TaskService.getAll();
 
     // Limpia todo excepto el mensaje de "vacío" (se controla aparte).
     questListEl.querySelectorAll('.quest-card').forEach(card => card.remove());
@@ -246,7 +249,7 @@
    * Maneja el submit del formulario de nueva misión.
    * @param {SubmitEvent} event
    */
-  function handleAddQuest(event) {
+  async function handleAddQuest(event) {
     event.preventDefault();
 
     const text = questInputEl.value.trim();
@@ -256,13 +259,13 @@
     // ya cae de vuelta a 10 XP por defecto.
     const xpValue = Number(questXpInputEl.value);
 
-    TaskService.add(text, xpValue);
+    await TaskService.add(text, xpValue);
 
     questInputEl.value = '';
     questXpInputEl.value = '10';
     questInputEl.focus();
 
-    renderQuestList();
+    await renderQuestList();
   }
 
   /**
@@ -287,14 +290,14 @@
    * completar (no al desmarcar), y refresca héroe + lista.
    * @param {string} id
    */
-  function handleToggleQuest(id) {
-    const updated = TaskService.toggleComplete(id);
+  async function handleToggleQuest(id) {
+    const updated = await TaskService.toggleComplete(id);
     if (!updated) return;
 
     if (updated.completed) {
       // Usa la XP personalizada de ESTA misión (quest.xpValue), no un
       // valor fijo global.
-      const { leveledUp, levelsGained, state } = HeroService.addXp(updated.xpValue);
+      const { leveledUp, levelsGained, state } = await HeroService.addXp(updated.xpValue);
 
       showToast(`+${updated.xpValue} XP`, 'xp');
 
@@ -304,10 +307,25 @@
           : `¡SUBISTE DE NIVEL! Ahora eres nivel ${state.level}`;
         showToast(label, 'levelup');
       }
+    } else {
+      // BUG FIX: desmarcar una misión debe revertir la XP que se otorgó
+      // al completarla, igual que ya se hacía al eliminarla. Antes esta
+      // rama no existía y permitía acumular XP infinita marcando y
+      // desmarcando la misma misión.
+      const { leveledDown, levelsLost, state } = await HeroService.subtractXp(updated.xpValue);
+
+      showToast(`-${updated.xpValue} XP`, 'decay');
+
+      if (leveledDown) {
+        const label = levelsLost > 1
+          ? `Perdiste ${levelsLost} niveles. Ahora eres nivel ${state.level}`
+          : `Bajaste de nivel. Ahora eres nivel ${state.level}`;
+        showToast(label, 'decay');
+      }
     }
 
-    renderHeroStatus();
-    renderQuestList();
+    await renderHeroStatus();
+    await renderQuestList();
 
     // El estallido se dispara DESPUÉS de repintar la lista, ya que
     // renderQuestList() reconstruye el DOM y el nodo anterior ya no existe.
@@ -326,17 +344,17 @@
    * Si estaba pendiente (no completada), no afecta la XP del héroe.
    * @param {string} id
    */
-  function handleDeleteQuest(id) {
-    const quest = TaskService.getById(id);
+  async function handleDeleteQuest(id) {
+    const quest = await TaskService.getById(id);
     if (!quest) return;
 
     const wasCompleted = quest.completed;
     const xpToRevert = quest.xpValue;
 
-    TaskService.remove(id);
+    await TaskService.remove(id);
 
     if (wasCompleted) {
-      const { leveledDown, levelsLost, state } = HeroService.subtractXp(xpToRevert);
+      const { leveledDown, levelsLost, state } = await HeroService.subtractXp(xpToRevert);
 
       showToast(`-${xpToRevert} XP`, 'decay');
 
@@ -347,10 +365,10 @@
         showToast(label, 'decay');
       }
 
-      renderHeroStatus();
+      await renderHeroStatus();
     }
 
-    renderQuestList();
+    await renderQuestList();
   }
 
   // ---- Reinicio diario (Daily Reset) ----
@@ -384,7 +402,7 @@
    *
    * @returns {boolean} true si se ejecutó un reinicio, false si no hacía falta.
    */
-  function checkDailyReset() {
+  async function checkDailyReset() {
     const todayStr = getTodayDateString();
     const lastResetStr = localStorage.getItem(LAST_RESET_KEY);
 
@@ -400,23 +418,23 @@
     }
 
     // ---- Cambió el día: desmarcar todas las misiones completadas ----
-    const quests = TaskService.getAll();
+    const quests = await TaskService.getAll();
 
-    quests.forEach(quest => {
+    for (const quest of quests) {
       if (quest.completed) {
         // Reutilizamos toggleComplete() porque es la única forma pública
         // de mutar 'completed' sin duplicar lógica de persistencia.
         // No otorga ni resta XP: HeroService no se toca en ningún momento.
-        TaskService.toggleComplete(quest.id);
+        await TaskService.toggleComplete(quest.id);
       }
-    });
+    }
 
     // Actualiza la fecha de control del reinicio.
     localStorage.setItem(LAST_RESET_KEY, todayStr);
 
     // Refresca la interfaz (la XP/nivel del héroe no cambia).
-    renderQuestList();
-    renderHeroStatus();
+    await renderQuestList();
+    await renderHeroStatus();
 
     return true;
   }
@@ -427,34 +445,44 @@
    * Consulta a HeroService si corresponde aplicar penalización por
    * inactividad y, si ocurre, refresca la UI y avisa con un toast.
    */
-  function checkDecay() {
-    const { decayed, periodsPenalized } = HeroService.applyDecayIfNeeded();
+  async function checkDecay() {
+    const { decayed, periodsPenalized } = await HeroService.applyDecayIfNeeded();
 
     if (decayed) {
       showToast(
         `⚠ Energía debilitada: -${periodsPenalized * HeroService.DECAY_XP_PENALTY} XP por inactividad`,
         'decay'
       );
-      renderHeroStatus();
+      await renderHeroStatus();
     } else {
       // Aunque no haya decay, el aviso previo (isDecayWarning) puede
       // haber cambiado con el paso del tiempo.
-      renderHeroStatus();
+      await renderHeroStatus();
     }
   }
 
   // ---- Inicialización ----
 
-  function init() {
+  /**
+   * Carga y pinta todos los datos del usuario actual: reinicio diario,
+   * decay, estado del héroe y lista de misiones. Se separa de init()
+   * porque necesita poder volver a ejecutarse en un momento distinto a
+   * "la página cargó": justo después de que authUI.js confirme que hay
+   * una sesión activa (login, registro, o sesión ya existente al abrir
+   * la app). Sin esto, si el usuario inicia sesión después de que la
+   * página ya cargó, el juego se mostraría con datos vacíos.
+   */
+  async function loadGameData() {
+    await checkDailyReset();
+    await checkDecay();
+    await renderHeroStatus();
+    await renderQuestList();
+  }
+
+  async function init() {
     questFormEl.addEventListener('submit', handleAddQuest);
 
-    // Reinicio diario: revisa al cargar si ya cambió el día y, de ser
-    // así, desmarca las misiones completadas (sin tocar la XP).
-    checkDailyReset();
-
-    // Revisa decay una vez al cargar (por si el usuario estuvo fuera)
-    // y luego periódicamente mientras la pestaña esté abierta.
-    checkDecay();
+    // Revisa decay periódicamente mientras la pestaña esté abierta.
     window.setInterval(checkDecay, DECAY_CHECK_INTERVAL_MS);
 
     // Si la app queda abierta en segundo plano (PWA) durante la noche,
@@ -468,8 +496,12 @@
 
     window.addEventListener('focus', checkDailyReset);
 
-    renderHeroStatus();
-    renderQuestList();
+    // Vuelve a cargar los datos del héroe y las misiones cada vez que
+    // authUI.js confirma una sesión activa (login, registro, o sesión
+    // ya existente al abrir la app).
+    document.addEventListener('hh:session-started', loadGameData);
+
+    await loadGameData();
   }
 
   document.addEventListener('DOMContentLoaded', init);
