@@ -108,7 +108,8 @@ function traducirError(message) {
     'Invalid login credentials': 'Correo o contraseña incorrectos.',
     'User already registered': 'Ese correo ya tiene una cuenta registrada.',
     'email rate limit exceeded': 'Se alcanzó el límite de correos. Intenta de nuevo en unos minutos.',
-    'Password should be at least 6 characters': 'La contraseña debe tener al menos 6 caracteres.'
+    'Password should be at least 6 characters': 'La contraseña debe tener al menos 6 caracteres.',
+    'Email not confirmed': 'Debes confirmar tu correo antes de iniciar sesión. Revisa tu bandeja de entrada (o spam).'
   };
 
   return traducciones[message] || message;
