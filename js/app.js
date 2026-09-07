@@ -95,8 +95,14 @@ import { HeroService } from './heroService.js';
    * de HeroService. Es idempotente: se puede llamar tantas veces como haga
    * falta para refrescar la UI.
    */
-  async function renderHeroStatus() {
-    const state = await HeroService.getState();
+  /**
+   * Repinta el panel de estado del héroe (nivel, barra de XP, aviso de decay).
+   * @param {Object} [precomputedState] - HeroState ya conocido en memoria
+   *   (p. ej. el que acaba de devolver addXp/subtractXp/applyDecayIfNeeded).
+   *   Si se pasa, se evitan hasta 2 lecturas de red redundantes.
+   */
+  async function renderHeroStatus(precomputedState) {
+    const state = precomputedState || await HeroService.getState();
     const xpNeeded = HeroService.xpToNextLevel(state.level);
     const percentage = Math.min(100, Math.round((state.xp / xpNeeded) * 100));
 
@@ -106,7 +112,7 @@ import { HeroService } from './heroService.js';
     xpBarLabelEl.textContent = `EXPERIENCIA: ${state.xp} / ${xpNeeded} XP`;
     xpBarEl.setAttribute('aria-valuenow', String(percentage));
 
-    const showWarning = await HeroService.isDecayWarning();
+    const showWarning = await HeroService.isDecayWarning(state);
     decayWarningEl.hidden = !showWarning;
   }
 
@@ -137,7 +143,7 @@ import { HeroService } from './heroService.js';
     checkbox.type = 'checkbox';
     checkbox.className = 'quest-card__checkbox';
     checkbox.checked = quest.completed;
-    checkbox.addEventListener('change', () => handleToggleQuest(quest.id));
+    checkbox.addEventListener('change', () => handleToggleQuest(quest.id, checkbox.checked));
 
     checkboxWrapper.appendChild(checkbox);
 
@@ -290,8 +296,8 @@ import { HeroService } from './heroService.js';
    * completar (no al desmarcar), y refresca héroe + lista.
    * @param {string} id
    */
-  async function handleToggleQuest(id) {
-    const updated = await TaskService.toggleComplete(id);
+  async function handleToggleQuest(id, targetCompleted) {
+    const updated = await TaskService.toggleComplete(id, targetCompleted);
     if (!updated) return;
 
     if (updated.completed) {
@@ -307,6 +313,8 @@ import { HeroService } from './heroService.js';
           : `¡SUBISTE DE NIVEL! Ahora eres nivel ${state.level}`;
         showToast(label, 'levelup');
       }
+
+      await renderHeroStatus(state);
     } else {
       // BUG FIX: desmarcar una misión debe revertir la XP que se otorgó
       // al completarla, igual que ya se hacía al eliminarla. Antes esta
@@ -322,9 +330,10 @@ import { HeroService } from './heroService.js';
           : `Bajaste de nivel. Ahora eres nivel ${state.level}`;
         showToast(label, 'decay');
       }
+
+      await renderHeroStatus(state);
     }
 
-    await renderHeroStatus();
     await renderQuestList();
 
     // El estallido se dispara DESPUÉS de repintar la lista, ya que
@@ -365,7 +374,7 @@ import { HeroService } from './heroService.js';
         showToast(label, 'decay');
       }
 
-      await renderHeroStatus();
+      await renderHeroStatus(state);
     }
 
     await renderQuestList();
@@ -425,7 +434,7 @@ import { HeroService } from './heroService.js';
         // Reutilizamos toggleComplete() porque es la única forma pública
         // de mutar 'completed' sin duplicar lógica de persistencia.
         // No otorga ni resta XP: HeroService no se toca en ningún momento.
-        await TaskService.toggleComplete(quest.id);
+        await TaskService.toggleComplete(quest.id, false);
       }
     }
 
@@ -446,19 +455,16 @@ import { HeroService } from './heroService.js';
    * inactividad y, si ocurre, refresca la UI y avisa con un toast.
    */
   async function checkDecay() {
-    const { decayed, periodsPenalized } = await HeroService.applyDecayIfNeeded();
+    const { decayed, periodsPenalized, state } = await HeroService.applyDecayIfNeeded();
 
     if (decayed) {
       showToast(
         `⚠ Energía debilitada: -${periodsPenalized * HeroService.DECAY_XP_PENALTY} XP por inactividad`,
         'decay'
       );
-      await renderHeroStatus();
-    } else {
-      // Aunque no haya decay, el aviso previo (isDecayWarning) puede
-      // haber cambiado con el paso del tiempo.
-      await renderHeroStatus();
     }
+
+    await renderHeroStatus(state);
   }
 
   // ---- Inicialización ----

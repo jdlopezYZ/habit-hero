@@ -143,10 +143,13 @@ export const HeroService = (() => {
 
   /**
    * Indica si se debe mostrar el aviso de advertencia por inactividad.
+   * @param {Object} [precomputedState] - HeroState ya conocido en memoria
+   *   (por ejemplo, el que acaba de devolver addXp/subtractXp). Si se pasa,
+   *   se evita una lectura de red redundante a `profiles`.
    * @returns {Promise<boolean>}
    */
-  async function isDecayWarning() {
-    const state = await getState();
+  async function isDecayWarning(precomputedState) {
+    const state = precomputedState || await getState();
     const hours = getHoursSinceLastActivity(state);
     return hours >= DECAY_WARNING_HOURS && hours < DECAY_THRESHOLD_HOURS;
   }

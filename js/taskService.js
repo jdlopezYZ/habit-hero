@@ -137,16 +137,23 @@ export const TaskService = (() => {
    * Alterna el estado completado/pendiente de una misión.
    * Actualiza completed_at en consecuencia.
    * @param {string} id
+   * @param {boolean} [knownTargetState] - Si el llamador ya sabe a qué
+   *   estado debe quedar la misión (p. ej. app.js ya conoce el valor del
+   *   checkbox tras el clic), se lo puede pasar aquí y así se evita una
+   *   lectura de red previa solo para "adivinar" el estado actual.
    * @returns {Promise<Object|null>} la misión actualizada, o null si no existe
    */
-  async function toggleComplete(id) {
-    const current = await getById(id);
-    if (!current) {
-      console.warn(`[TaskService] No se encontró la misión con id: ${id}`);
-      return null;
-    }
+  async function toggleComplete(id, knownTargetState) {
+    let newCompleted = knownTargetState;
 
-    const newCompleted = !current.completed;
+    if (typeof newCompleted !== 'boolean') {
+      const current = await getById(id);
+      if (!current) {
+        console.warn(`[TaskService] No se encontró la misión con id: ${id}`);
+        return null;
+      }
+      newCompleted = !current.completed;
+    }
 
     const { data, error } = await supabase
       .from('quests')
